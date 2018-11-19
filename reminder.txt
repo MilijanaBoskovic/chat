@@ -1,0 +1,186 @@
+REAL-TIME WEB APPS WITH Socket.io
+------------------------------------------------------------------------------------------------------------------------
+*two way communication between server and the client:
+=> we are going to set node server and we are be also going to set the client
+=>client can be web app or iphone app or android app => in our case it will be web APP
+=>with socket.io we are going to send data back and foward instantly
+=>for real time apps like email,food ordering or chat app, the server doesnt need to wait the client to request the information
+=> server can say: I just got something you probably want to show the user so here it is
+-----------------------------------------------------------------------------------------------------------------------------
+*unlike the other apps we have created, the chat app is going to have front end which means we will be writting some html, adding some styles and writting some js code that runs in the browser not on server
+=> we need 2 directories:
+1) server- which will store all of our node js code
+2) public -which will store our styles,html files and our client side js
+          => index.html-> is going to be markup page which we serve when someone visits the app
+
+
+*path built in module: nodejs.org=>docs=>api reference=>path=> const path=require('path') ==>we dont need to install built in modules
+             =>join() method: takes partial paths and joins them together
+             =>if we have paths wit going back like our relative paths it removes that part and make clean path:
+             ---for example:  console.log(__dirname +'\\..\\public') ===> C:\Users\inquiry\Desktop\node\node-chat-app\server\..\public
+                              path.join(__dirname ,'\\..\\public')   ===>  C:\Users\inquiry\Desktop\node\node-chat-app\public
+
+=> this is the path we want to provide to express static middleware which will need to serve public folder
+
+=>we need to set up express localy: => npm i express@4.14.0 --save
+
+
+------------------------------------------------------
+ADDING SOCKET.IO to an APP
+------------------------------------------------------
+=>we need to congigure server to allow to upcoming web socket connections
+=>this means server should be able to accept connections and we will seting up the client to make the connection=> after that we will be able to send data in both directions
+=> library socketio : has backend and frontend library we will be using both: to set up the server which support web sockets and create frontend which communicate with Server
+=> npm i socket.io@1.4.8 --save
+=> we need to make few changes to our server file=> const socketIO= require('socket.io')
+*currently we use express to create web server=> express in back use http npm library to create the server
+ =>we also need to use it ,configuring express to work with it, then and only then we will be able to add socket.io support
+ => we will load node built in module: const http=require('http')
+ =>we are going to create server: var server=http.createServer ----->app.listen is also calling this method passing in the app as the argument for createServer
+  =>createServer takes a function which looks realy similar to one of our express callbacks, it gets called with req and res
+  =>http is actually used behind the scene for express,they integrated so much so we can do=>
+  => createServer(app)
+  =>we are now using http server instead of express server
+  =>
+            var app = express();
+            var server=http.createServer(app);
+
+            app.use(express.static(publicPath));
+
+            server.listen(3000, ()=>{
+              console.log(`Server start listening on port ${port}`);
+            });
+* now we need to configure server to use Socket.io:
+
+  => first: var io=socketIO(server); //we are passing server we want to use with our web sockets
+  => it returns web socket server, with it we can do anything we want in terms of  emiting or listening events
+  => this is how we will comunicate between server and the client
+
+  =>with this we are ready to accept new connections, the problem is we dont have any connections to acccept
+  =>when we load our web page we do not do anything, we are not acctualy connecting to the server and we are going to need manualy run some js code to initiate that connection process
+
+*when we integrated socket.io with our server we acctualy get access to few cool things:
+ 1) we get access to route which acccepts incoming connections which means we can now accept web socket connections
+ 2) we get access to a js library that makes realy easy to work with socket.io on the client : localhost:3000/socket.io/socket.io.js
+    => it is js library which contains all of the code we are going to need on a client to make a connection and to transfer the data(in both directions)
+    =>to make the connection in our html file, is load this in : we will add on the ebd body <script> tag:
+          <script> src="/socket.io/socket.io.js" </script>
+    => to load in an external file we are going to use src atribute providing the path which is realtive to our server
+    => we are now loading the library and on the browser we will have access to all sorts of methods available because of socket library
+    =>one of this methods will let us to initiate connection request:
+       <script>
+            var socket=io();
+       </script>
+    =>this time instead of loading an external script we are going to write some js which is going to run just after socket.io library loads
+    =>we are calling io method available to us because we loaded library, it is not native to the browser
+    =>when we call it we actually initiating the request, we are making request from client to the server to open up the web socket and keep that connection open
+    =>it returns socket, and this variable is critical for communication, it is exactly what we need in order to listen for data from the server
+    =>and in order to send data to the server
+
+=> we go to localhost:3000 and open chrome dev tools to do little debuging
+=>we go to network panel which keeps track of all requests made by your web page
+=>after refreshing the page we can see the list of network requests =>we have 6 => one for html file
+                                                                               =>second for js file which give us library and access for calling methods
+                                                                               =>next 4 are realted to starting up and maintaining connection
+=> now we have lie connection between client and server and we can start communication
+=> this connection can be anything at all, this comes in form of any event
+=>events can be emitted from wheather client or server and whether client or server can listen for events
+=> the whole client server relationship is entirely run via this events
+=> default ones,built in events: let you keep track of new users and disconnecting users=> this meanswe will be able to do something like to great a user when they join to our application
+=> in server we will call: io.on() which let us register event listener: it accepts name of event and callback function in which we can do something when that event happens
+=> event connection let us to listen for a new connection meaning that the client connected to the server
+            io.on('connection',(socket)=>{
+                console.log('New user connected');
+            });
+=>socket argument is realy similar to socket argument we have acces to in our html and it is representing individual socket
+
+=>it should already be printed in console if our server was run with nodemon
+=>to explain why we need to understand one thing about web sockets=> they are persistent tehnology
+=>the both,client and server keep communicating channel open for as long both of them want to (until one of them closes)
+=>when connection drops the client is still going to try to reconnect
+=>when we restart the server with nodemon, there is like 1/4s when the server is down and client notices that =>thats why we see message in console
+
+
+*connection event also exists in the client,this means we can do something in client when we succesfuly connect to the server
+=>  socket.on('connect',()=>{
+      console.log('connected to server');
+    });
+----------------------------------------------------------------
+EMITTING AND LISTENING TO EVENTS
+----------------------------------------------------------------
+*when we are able to listen and emit custom events we can send anything from server to the client
+*in our recent example we used arrow functions in our client side js code,
+ but in future  we will use regular functions because that is es6 because project will work in chrome,but on mobile phone,explorer,safari it will crash
+
+ *we will make separate file for our js code: index.js and it will load when we load index.html
+  and we will call it with: <script>src="/js/index.js"</script>
+
+  *we will make some events and listeners:
+*in server file:
+1) we create event with emit method which takes two arguments:
+  1. name of event which have to be the same as name in listener because now we are creating custom events
+  2. object with data we want to pass with emited event
+  socket.emit('newEmail',{
+        from: 'mike@example.com',
+        text: 'HI :)',
+        createAt:123
+    });
+2)we create event listener with on method which takes 2 arguments:
+  1. name of event
+  2. callbackfunction which will have as argument, object which is passed with event,
+    => we are in node code so we dont need to use regular functions
+
+  socket.on('createEmail',(newEmail)=>{
+    console.log('createEmail: ',newEmail);
+  });
+
+*in client file:
+1) we create event listener in the same way as we created it inside of server
+
+  socket.on('newEmail', function(email){
+    console.log('New email: ',email);
+  });
+2)we create event in the same way as we created it inside of server
+  socket.emit('createEmail',{
+    to:'jena@example.com',
+    text: 'Hey.This is Mike'
+  });
+});
+
+ATTENTON: in server file all events and listeners must be written inside connect and before disconect event handlers
+
+ATTENTON: io.on method we used for connection event is very special event and usualy is used only for that
+----------------------------------------------------------------------------------------------------------
+BROADCASTING events
+----------------------------------------------------------------------------------------------------------
+*idea is that when user send message to the server the mesage is sent to every connected user
+  so if we open two tabs in browser and we emit createMessage in one tab we should able to see new message in other tab
+* we will change listener for createMessage in server:
+    => we will emit event newMessage inside of it, but instead of using socket.emit which emits event to the single connection
+       we will use io.emit wich emits event to every single connection
+       socket.on('createMessage',(newMessage)=>{
+        io.emit('newMessage',{
+          from: newMessage.from,
+          text: newMessage.text,
+          createdAt: new Date().getTime()
+        });
+      });
+
+* there are different ways to emit events in server
+1. go to every connected user including the one who sent  Message
+2. only to other users =>that is the term BROADCASTING
+socket.on('createMessage',(newMessage)=>{
+  socket.broadcast.emit('newMessage',{     //we need to use socket to specify individual socket which emit message
+    from: newMessage.from,                 //and then we use broadcast object which has its own emit function
+    text: newMessage.text,
+    createdAt: new Date().getTime()
+    });
+  });
+
+*now we made function generateMessage in separate file
+*we want to set things for testing so we need to install : npm install expect@1.20.2 mocha@3.0.2 --save-dev
+                                                           npm install nodemon@1.10.2 --save-dev
+ => after that we need to make test and test-watch scripts in package.json:
+          "test": "mocha server/**/*.test.js",
+          "test-watch": "nodemon --exec \"npm test\""
+=>after that we create test file and run: npm test to check can the file be found
